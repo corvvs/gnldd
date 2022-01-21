@@ -9,7 +9,7 @@ GNL_WORKDIR_BONUS		:=	work_bonus
 GNL_BUFFER_SIZES		:=	1 2 4 8 16 41 42 43 100 1000 1024 2048 4096 1000000
 
 GNL_TESTFILEDIR			:=	test_files
-GNL_TESTFILES			:=	0x0 0x1 1x1 1x0 1x10 10x1 10x10 42x0 42x1 0x42 1x42 42x42 42x100 1000x0 1000x1 1000x10 0x1000 1x1000 10x1000 1000x1000
+GNL_TESTFILES			:=	0x1x0 0x1x1 1x1x1 1x1x0 1x10x1 10x1x0 10x1x1 10x10x1 42x1x0 42x1 0x42x0 1x42x1 42x42x1 42x100x1 1000x1x0 1000x1x1 1000x10x1 0x1000x1 1x1000x1 10x1000x1 1000x1000x1
 
 EXEC_MANDATORY			:=	exec_mandatory
 EXEC_BONUS				:=	exec_bonus
@@ -20,9 +20,12 @@ CCFLAGS					:=	-Wall -Wextra -Werror -fsanitize=address -D BUFFER_SIZE=$(BUFFER_
 $(GNL_TESTFILEDIR)		:
 	mkdir -p $(GNL_TESTFILEDIR)
 
-$(GNL_TESTFILES)		:	$(GNL_TESTFILEDIR)
+$(GNL_TESTFILES)		:
 	@echo "generating test file" $@ "..."
-	@ruby -e 'AS = ("a".."z").to_a; W, H = "$@".split("x").map &:to_i; h = H; (H + 1).times{ |i| print (0...W).map{ AS[rand(AS.size)] }.join; puts if h > 0; h -= 1 }' > $@
+	@ruby -e 'AS = ("a".."z").to_a; W, H, NL = "$@".split("x").map &:to_i; H.times{ |i| print (0...W).map{ AS[rand(AS.size)] }.join; print "\n" if i < H - 1 || NL == 1 }' > $@
+
+tfwipe					:
+	rm -f $(GNL_TESTFILES)
 
 $(GNL_WORKDIR_MANDATORY):
 	mkdir -p $(GNL_WORKDIR_MANDATORY)
@@ -35,7 +38,7 @@ deploy_mandatory		:	$(GNL_WORKDIR_MANDATORY)
 	cp $(GNL_DIR)/$(GNL_FILES_MANDATORY) $(GNL_WORKDIR_MANDATORY)/
 
 $(EXEC_MANDATORY)		:	deploy_mandatory
-	$(CC) $(CCFLAGS) -o $(EXEC_MANDATORY) $(GNL_WORKDIR_MANDATORY)/*.c main_mandatory.c
+	$(CC) $(CCFLAGS) -o $(EXEC_MANDATORY) $(GNL_WORKDIR_MANDATORY)/*.c main_mandatory.c shim.c
 
 run						:
 	echo $(GNL_BUFFER_SIZES) | tr ' ' '\n' | xargs -I{} $(MAKE) BUFFER_SIZE={} run_for;
@@ -47,3 +50,6 @@ run_fd					:	$(GNL_TESTFILES)
 
 run_stdin				:	$(GNL_TESTFILES)
 	echo $(GNL_TESTFILES) | tr ' ' '\n' | xargs -I{} cat {} | ./$(EXEC_MANDATORY) > tout && diff -u {} tout;
+
+fclean	:
+	$(RM) -f $(EXEC_MANDATORY) $(EXEC_BONUS)
